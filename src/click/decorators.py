@@ -1,4 +1,7 @@
 import inspect
+
+from os.path import dirname, abspath
+from sys import version_info
 from functools import update_wrapper
 
 from .core import Argument
@@ -262,7 +265,8 @@ def version_option(
     :param prog_name: The name of the CLI to show in the message. If not
         provided, it will be detected from the command.
     :param message: The message to show. The values ``%(prog)s``,
-        ``%(package)s``, and ``%(version)s`` are available.
+        ``%(package)s``, ``%(path)s``, ``%(version)s`` and 
+        ``%(python_version)s`` are available.
     :param kwargs: Extra arguments are passed to :func:`option`.
     :raise RuntimeError: ``version`` could not be detected.
 
@@ -273,14 +277,20 @@ def version_option(
     .. versionchanged:: 8.0
         Use :mod:`importlib.metadata` instead of ``pkg_resources``.
     """
-    if version is None and package_name is None:
-        frame = inspect.currentframe()
-        f_globals = frame.f_back.f_globals if frame is not None else None
-        # break reference cycle
-        # https://docs.python.org/3/library/inspect.html#the-interpreter-stack
-        del frame
+    python_version = '{major}.{minor}.{micro}'.format(
+        major=version_info.major,
+        minor=version_info.minor,
+        micro=version_info.micro,
+    )
+    
+    frame = inspect.currentframe()
+    f_globals = frame.f_back.f_globals if frame is not None else None
+    # break reference cycle
+    # https://docs.python.org/3/library/inspect.html#the-interpreter-stack
+    del frame
 
-        if f_globals is not None:
+    if f_globals is not None:
+        if package_name is None:
             package_name = f_globals.get("__name__")
 
             if package_name == "__main__":
@@ -288,6 +298,9 @@ def version_option(
 
             if package_name:
                 package_name = package_name.partition(".")[0]
+
+        path_dir = dirname(abspath(f_globals.get("__file__")))
+
 
     def callback(ctx, param, value):
         if not value or ctx.resilient_parsing:
@@ -299,7 +312,7 @@ def version_option(
         if prog_name is None:
             prog_name = ctx.find_root().info_name
 
-        if version is None and package_name is not None:
+        if version is None and not package_name is None:
             try:
                 from importlib import metadata
             except ImportError:
@@ -328,7 +341,13 @@ def version_option(
             )
 
         echo(
-            message % {"prog": prog_name, "package": package_name, "version": version},
+            message % {
+                "prog": prog_name,
+                "package": package_name,
+                "path": path_dir,
+                "version": version,
+                "python_version": python_version
+            },
             color=ctx.color,
         )
         ctx.exit()
