@@ -240,7 +240,9 @@ def version_option(
     version=None,
     *param_decls,
     package_name=None,
+    path_dir=None,
     prog_name=None,
+    python_version=None,
     message="%(prog)s, version %(version)s",
     **kwargs,
 ):
@@ -262,8 +264,12 @@ def version_option(
         value ``"--version"``.
     :param package_name: The package name to detect the version from. If
         not provided, Click will try to detect it.
+    :param path_dir: The path of package for file directory to use in the
+        message values. If not provided, Click will try to detect it.
     :param prog_name: The name of the CLI to show in the message. If not
         provided, it will be detected from the command.
+    :param python_version: The version of Python enviroment to use in the
+        message values. If not provided, Click will try to detect it.
     :param message: The message to show. The values ``%(prog)s``,
         ``%(package)s``, ``%(path)s``, ``%(version)s`` and 
         ``%(python_version)s`` are available.
@@ -273,15 +279,20 @@ def version_option(
     .. versionchanged:: 8.0
         Add the ``package_name`` parameter, and the ``%(package)s``
         value for messages.
+        Add the ``path_dir`` parameter, and the ``%(path)s`` value
+        for messages.
+        Add the ``python_version`` parameter and the ``%(python_version)s``
+        value for messages.
 
     .. versionchanged:: 8.0
         Use :mod:`importlib.metadata` instead of ``pkg_resources``.
     """
-    python_version = '{major}.{minor}.{micro}'.format(
-        major=version_info.major,
-        minor=version_info.minor,
-        micro=version_info.micro,
-    )
+    if python_version is None:
+        python_version = '{major}.{minor}.{micro}'.format(
+            major=version_info.major,
+            minor=version_info.minor,
+            micro=version_info.micro,
+        )
     
     frame = inspect.currentframe()
     f_globals = frame.f_back.f_globals if frame is not None else None
@@ -298,8 +309,9 @@ def version_option(
 
             if package_name:
                 package_name = package_name.partition(".")[0]
-
-        path_dir = dirname(abspath(f_globals.get("__file__")))
+        
+        if package_dir is None:
+            path_dir = dirname(abspath(f_globals.get("__file__")))
 
 
     def callback(ctx, param, value):
